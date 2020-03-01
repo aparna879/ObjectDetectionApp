@@ -1,0 +1,5 @@
+stop
+falling-rock
+give-way
+right-reverse-bend
+hospital
