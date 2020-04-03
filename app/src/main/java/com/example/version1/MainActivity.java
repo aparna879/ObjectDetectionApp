@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     ImageView imageView;
     Button button;
     private static final int IMAGE_MEAN = 128;
-    private static final float IMAGE_STD = 128.0f;
+    private static final float IMAGE_STD = 255.0f;
     private  static final int PERMISSION_REQUEST=0;
     private  static final int RESULT_LOAD = 1;
     private static final int RESULTS_TO_SHOW = 1;
@@ -57,12 +57,12 @@ public class MainActivity extends AppCompatActivity {
 
     private ByteBuffer imgData = null;
     //private float[][] labelProbArray = null;
-    private byte[][] labelProbArrayB = null;
-    private String[] topLables = null;
-
+    //private byte[][] labelProbArrayB = null;
+    private float[][] labelProbArray = null;
+//    s
     private int DIM_IMG_SIZE_X = 128;
     private int DIM_IMG_SIZE_Y = 128;
-    private int DIM_PIXEL_SIZE = 3;
+    private int DIM_PIXEL_SIZE = 1;
 
     private int[] intValues;
 
@@ -104,10 +104,12 @@ public class MainActivity extends AppCompatActivity {
             ex.printStackTrace();
         }
 
-        imgData = ByteBuffer.allocateDirect(DIM_IMG_SIZE_X * DIM_IMG_SIZE_Y * DIM_PIXEL_SIZE);
+//        imgData = ByteBuffer.allocateDirect(DIM_IMG_SIZE_X * DIM_IMG_SIZE_Y * DIM_PIXEL_SIZE);
+        imgData = ByteBuffer.allocateDirect(4*DIM_IMG_SIZE_X * DIM_IMG_SIZE_Y * DIM_PIXEL_SIZE);
         imgData.order(ByteOrder.nativeOrder());
 
-        labelProbArrayB= new byte[1][labelList.size()];
+        labelProbArray = new float[1][labelList.size()];
+//        labelProbArrayB= new byte[1][labelList.size()];
 //        setContentView(R.layout.activity_classify);
 
         classify_button = (Button)findViewById(button5);
@@ -121,8 +123,10 @@ public class MainActivity extends AppCompatActivity {
                 // convert bitmap to byte array
                 convertBitmapToByteBuffer(bitmap);
                 // pass byte data to the graph
-                tflite.run(imgData, labelProbArrayB);
-
+                tflite.run(imgData, labelProbArray);
+                for(int i=0;i<3;i++) {
+                    System.out.println("label" + labelProbArray[0][i]);
+                }
                 // display the results
                 printTopKLabels();
             }
@@ -157,18 +161,31 @@ public class MainActivity extends AppCompatActivity {
         }
         System.out.println("ImageData"+imgData);
 
+
         imgData.rewind();
+        //imgData
         bitmap.getPixels(intValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
         // loop through all pixels
         int pixel = 0;
         for (int i = 0; i < DIM_IMG_SIZE_X; ++i) {
             for (int j = 0; j < DIM_IMG_SIZE_Y; ++j) {
                 final int val = intValues[pixel++];
+                //System.out.println("okokokokok--------" + val);
+
+
                 // get rgb values from intValues where each int holds the rgb values for a pixel.
-                // if quantized, convert each rgb value to a byte, otherwise to a float
-                imgData.put((byte) ((val >> 16) & 0xFF));
-                imgData.put((byte) ((val >> 8) & 0xFF));
-                imgData.put((byte) (val & 0xFF));
+//                // if quantized, convert each rgb value to a byte, otherwise to a float
+//                imgData.putFloat((((val >> 16) & 0xFF)-IMAGE_MEAN)/IMAGE_STD);
+//                imgData.putFloat((((val >> 8) & 0xFF)-IMAGE_MEAN)/IMAGE_STD);
+//                imgData.putFloat((((val) & 0xFF)-IMAGE_MEAN)/IMAGE_STD);
+//                imgData.putFloat((((val >> 16) & 0xFF))/255f);
+//                imgData.putFloat((((val >> 8) & 0xFF))/255f);
+//                imgData.putFloat((val)/255f);
+                float rChannel = (val >> 16) & 0xFF;
+                float gChannel = (val >> 8) & 0xFF;
+                float bChannel = (val) & 0xFF;
+                float pixelValue = (rChannel + gChannel + bChannel) / 3 / 255.f;
+                imgData.putFloat(pixelValue);
                 }
 
             }
@@ -203,24 +220,39 @@ public class MainActivity extends AppCompatActivity {
 
     private void printTopKLabels() {
         // add all results to priority queue
+        int mx=0;
         for (int i = 0; i < labelList.size(); ++i) {
-            sortedLabels.add(
-                    new AbstractMap.SimpleEntry<>(labelList.get(i), (labelProbArrayB[0][i] & 0xff) / 255.0f));
-            if (sortedLabels.size() > RESULTS_TO_SHOW) {
-                sortedLabels.poll();
+
+            if (labelProbArray[0][i] > labelProbArray[0][mx]) {
+                mx = i;
             }
         }
+        String x=labelList.get(mx);
+        System.out.println(x);
+
+//            sortedLabels.add(
+//                    new AbstractMap.SimpleEntry<>(labelList.get(i), (labelProbArrayB[0][i] & 0xff) / 255.0f));
+//            sortedLabels.add(
+//                    new AbstractMap.SimpleEntry<>(labelList.get(i), labelProbArray[0][i]));
+//            if (sortedLabels.size() > RESULTS_TO_SHOW) {
+//                sortedLabels.poll();
+//            }
+//        }
 
         // get top results from priority queue
-        final int size = sortedLabels.size();
-        for (int i = 0; i < size; ++i) {
-            Map.Entry<String, Float> label = sortedLabels.poll();
-            topLables[i] = label.getKey();
+//        final int size = sortedLabels.size();
+//        for (int i = 0; i < size; ++i) {
+//            Map.Entry<String, Float> label = sortedLabels.poll();
+//            String str = label.getKey();
+//            System.out.println("str"+str);
+//            System.out.println(str.getClass().getName());
+//            topLables.add(str);
 //            topConfidence[i] = String.format("%.0f%%",label.getValue()*100);
-        }
+//        }
 
         // set the corresponding textviews with the results
-        label1.setText("1. "+topLables[2]);
+        label1=(TextView)findViewById(R.id.textView);
+        label1.setText("1. "+(String)(x));
 
     }
     @Override
